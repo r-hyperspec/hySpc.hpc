@@ -1,17 +1,17 @@
 :+1::tada: First off, thanks for taking the time to contribute! :tada::+1:
 
-The following is a set of guidelines for contributing to the `R` package `SKELETON`.
+The following is a set of guidelines for contributing to the `R` package `hySpc.hpc`.
 
 ## Code Licensing
 
 Package **`hyperSpec`** and some of its [associated repos](https://github.com/r-hyperspec) (in the following text **`r-hyperspec` project**) were originally licensed under GPL-3.
 But as of June 2020, we are migrating to the MIT license.
 All future contributions will be MIT licensed.
-By contributing, you understand and agree that your work becomes the part of the [**`r-hyperspec` project**](https://github.com/r-hyperspec) and will be licensed under the [MIT license](https://github.com/r-hyperspec/hySpc.skeleton/blob/master/LICENSE).
+By contributing, you understand and agree that your work becomes the part of the [**`r-hyperspec` project**](https://github.com/r-hyperspec) and will be licensed under the [MIT license](https://github.com/r-hyperspec/hySpc.hpc/blob/master/LICENSE).
 
 ## Reporting Bugs and Submitting Suggestions
 
-* Ensure the bug was not already reported by searching on GitHub under [Issues](https://github.com/r-hyperspec/hySpc.skeleton/issues).
+* Ensure the bug was not already reported by searching on GitHub under [Issues](https://github.com/r-hyperspec/hySpc.hpc/issues).
 * If you're unable to find an open issue addressing the problem, open a new one. Be sure to include a title and clear description, as much relevant information as possible, and a code sample or an executable test case demonstrating the expected behavior that is not occurring.
 * Refer to the [Bug Reporting in R article](https://www.r-project.org/bugs.html) for guidance.
 * The ideal minimal working example is a unit test.
@@ -59,7 +59,7 @@ By contributing, you understand and agree that your work becomes the part of the
 * Sourced files should make vignette authors' life easier, and should not contain anything important to end users/readers.
 * The first code block should start with `rm(list = ls())` to ensure a clean, reproducible workspace.
 * NEED TO DISCUSS: formatting of code blocks. Could use `tidy = TRUE` as one option.
-* If you need to leave a note in a vignette, please use this [method](https://github.com/cbeleites/SKELETON/pull/147#issuecomment-646685392).
+* If you need to leave a note in a vignette, please use this [method](https://github.com/cbeleites/hySpc.hpc/pull/147#issuecomment-646685392).
 * Figure sizes are largely standardized, via the hook defined in `vignette-default-settings.R`.  See the discussion there.
 
 
@@ -78,7 +78,7 @@ The branch `develop` contains latest delivered development changes for the next 
 
 You *should not* directly contribute to `develop`, unless the change is trivial (e.g. a typo). Instead, for any new feature or bugfix, please create a separate supporting branch. We use a default naming convention for them:
 
-* `feature/###-<feature_name>` for new features. Generally, for a new feature you should open an issue which *at least* describes the intended feature; it may go further and allow for discussion and refinement before much effort is expended.  `###` is the corresponding [issue number](https://github.com/r-hyperspec/SKELETON/issues).
+* `feature/###-<feature_name>` for new features. Generally, for a new feature you should open an issue which *at least* describes the intended feature; it may go further and allow for discussion and refinement before much effort is expended.  `###` is the corresponding [issue number](https://github.com/r-hyperspec/hySpc.hpc/issues).
 * `bugfix/###-<bugfix_name>` for bugfixes
 * `release/x.y.z` for release preparation, where `x.y.z.` is the version to be released. See section "Release process" below for details.
 
