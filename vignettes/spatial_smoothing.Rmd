@@ -1,0 +1,99 @@
+---
+title: "Spatial Smoothing with Rust in hySpc.hpc"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Spatial Smoothing with Rust in hySpc.hpc}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+Hyperspectral imaging data often suffers from spatial noise. A common preprocessing step is to apply a spatial smoother. This vignette demonstrates how to use the `graphSmooth()` function provided by `hySpc.hpc`. 
+
+This implementation leverages Rust's `extendr` framework and the high-performance `faer` linear algebra crate to solve the sparse Laplacian equation:
+
+$$
+(I + \alpha L) x = b
+$$
+
+Where:
+* $I$ is the identity matrix.
+* $L$ is the graph Laplacian of the spatial grid.
+* $\alpha$ is a smoothing parameter.
+* $b$ is the noisy input hyperspectral data.
+* $x$ is the resulting smoothed data.
+
+## Usage
+
+First, load the required packages.
+
+```{r setup, message=FALSE}
+library(hyperSpec)
+library(hySpc.hpc)
+```
+
+Let's create a simulated noisy hyperspectral image. We'll use a small $10 \times 10$ spatial grid and $5$ wavelength bands for demonstration.
+
+```{r simulate}
+set.seed(123)
+width <- 10
+height <- 10
+n_pixels <- width * height
+n_bands <- 5
+
+# Create a clean signal (e.g. a simple gradient)
+clean_signal <- matrix(rep(1:n_pixels, n_bands), nrow = n_pixels) / n_pixels
+
+# Add Gaussian noise
+noisy_signal <- clean_signal + matrix(rnorm(n_pixels * n_bands, sd = 0.2), nrow = n_pixels)
+
+# Wrap it in a hyperSpec object
+spc_noisy <- new("hyperSpec", spc = noisy_signal)
+```
+
+### Applying the Smoother
+
+To apply the smoother, we simply call `graphSmooth()`, providing the spatial dimensions.
+
+```{r smooth}
+# Apply smoothing with alpha = 2.0 and 8-connectivity
+spc_smoothed <- graphSmooth(spc_noisy, width, height, alpha = 2.0, neighbors = 8)
+```
+
+We can visually compare the noisy and smoothed data.
+
+```{r plot, fig.width=6, fig.height=4}
+# Extract the first wavelength band and reshape to a matrix for plotting
+noisy_band1 <- matrix(spc_noisy[,,1]@data$spc, nrow = height, ncol = width)
+smoothed_band1 <- matrix(spc_smoothed[,,1]@data$spc, nrow = height, ncol = width)
+
+par(mfrow=c(1,2))
+image(noisy_band1, main="Noisy Band 1", col=hcl.colors(12, "viridis"))
+image(smoothed_band1, main="Smoothed Band 1", col=hcl.colors(12, "viridis"))
+```
+
+### Parameters
+
+* **`alpha`**: Controls the amount of smoothing. Higher values result in stronger smoothing.
+* **`neighbors`**: The connectivity of the spatial grid. Can be `4` (up, down, left, right) or `8` (includes diagonals).
+
+```{r strong_smooth}
+# Stronger smoothing
+spc_strong <- graphSmooth(spc_noisy, width, height, alpha = 10.0, neighbors = 8)
+strong_band1 <- matrix(spc_strong[,,1]@data$spc, nrow = height, ncol = width)
+
+par(mfrow=c(1,1))
+image(strong_band1, main="Strongly Smoothed (alpha = 10.0)", col=hcl.colors(12, "viridis"))
+```
+
+## Performance
+
+By utilizing a sparse Cholesky solver natively in Rust, `graphSmooth()` is designed to handle very large images efficiently. Memory overhead is minimized by directly passing memory slices via `extendr`.

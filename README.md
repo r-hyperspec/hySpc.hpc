@@ -1,56 +1,19 @@
-<!-- START: delete this TODO section, when not needed -->
+# **hySpc.hpc**
 
-# **TODO** When Creating a New Package (Repository)
+High-Performance Computing tools for `r-hyperspec`.
 
-Repository **`hySpc.hpc`** is a package template ("skeleton") for **`r-hyperspec`** family packages.
+`hySpc.hpc` provides advanced spatial algorithms for hyperspectral images using high-performance Rust FFI (`extendr`) and sparse linear algebra (`faer`).
 
-When creating a new package (repository):
+## Usage
 
-- [x] replace words `hySpc.hpc` and `hySpc.hpc` with the new package name in:
-  - [x] `DESCRIPTION`
-  - [x] `NEWS.md`
-  - [x] `README.md`
-  - [x] `LICENSE`
-  - [x] `tests/testthat.R`
-  - [x] `tests/testthat/test_attached.R`
-  - [x] other files
-- [x] update `DESCRIPTION`:
-  - [x] title
-  - [x] description
-  - [x] the list of authors and contributors
-  - [x] license
-  - [x] other fields
-- [x] update licensing information in
-  - [x] `DESCRIPTION`
-  - [x] `LICENSE`
-  - [x] `README.md`
-  - [x] elswhere
-- [ ] update `README`:
-  - [ ] update badges
-  - [ ] update installation instructions (e.g., instead of `devtools::install(build_vignettes = TRUE)` the following code might be more appropriate if no vignettes are included `devtools::install()`)
-  - [ ] update other information, if needed.
-- [ ] create issue labels:
-  - [ ] apply github labels (in `github-helpers/`),
-  - [ ] delete `github-helpers/`
-- [ ] Code & Vignettes:
-    - [ ] Be sure to review `CONTRIBUTING.md` which describes the standard operating procedures for the `r-hyperspec` project.
-    - [ ] Copy the code needed for this new package from the original `hyperSpec` files. Leave the old code untouched for now, as `hyperSpec` has to continue to operate.
-    - [ ] Update the code and write new code as needed.
-    - [ ] Update unit tests as needed.
-    - [ ] Update examples as needed.
-    - [ ] Build and check locally. Chase out the demons.
-    - [ ] Create a new vignette for this package, starting from the relevant vignette in original `hyperSpec`.  The support files are already present.  If you don't want a vignette, delete the entire vignette folder.
-    - [ ] Build and check locally again, fixing any remaining problems.
-    - [ ] Create a pull request as described in `CONTRIBUTING.md`.
-    - [ ] Rinse and repeat to reach perfection!
-- [x] Workflows:
-  - [x] Update the branches in `.github/workflows/drat--insert-package.yaml`.  Triggering branches are set to NONE in `pkg-skeleton` because we don't want `pkg-skeleton` to be deployed to the repo.
-- [ ] _update this list of TODOs_
-- [ ] Delete this TODO section.
+```r
+library(hyperSpec)
+library(hySpc.hpc)
 
-
-***
-<!-- END: delete this TODO section, when not needed -->
+# Suppose `spc_noisy` is a hyperspectral image
+# Apply spatial smoothing with a Rust-powered sparse Cholesky solver:
+spc_smoothed <- graphSmooth(spc_noisy, width = 100, height = 100, alpha = 2.0, neighbors = 8)
+```
 
 
 <!-- ---------------------------------------------------------------------- -->

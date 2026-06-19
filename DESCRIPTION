@@ -15,21 +15,28 @@ LazyData: yes
 Additional_repositories: 
     https://r-hyperspec.github.io/pkg-repo/
 Depends:
-    hyperSpec
+    hyperSpec,
+    R (>= 4.2)
 Imports:
     hySpc.testthat
 Suggests:
     knitr,
     covr,
-    rmarkdown
+    rmarkdown,
+    testthat (>= 3.0.0)
 URL: 
     https://r-hyperspec.github.io/hySpc.hpc,
     https://github.com/r-hyperspec/hySpc.hpc
 BugReports: https://github.com/r-hyperspec/hySpc.hpc/issues
 VignetteBuilder: knitr
-RoxygenNote: 7.1.2
 Roxygen: list(markdown = TRUE)
 Collate:
     'demo_function.R'
+    'extendr-wrappers.R'
+    'graphSmooth.R'
     'package.R'
     'unittestdata.R'
+Config/rextendr/version: 0.5.0
+SystemRequirements: Cargo (Rust's package manager), rustc >= 1.65.0, xz
+Config/roxygen2/version: 8.0.0
+Config/testthat/edition: 3
