@@ -6,6 +6,11 @@
 NULL
 
 #' Solve graph-based spatial smoothing: (I + alpha * L) x = b
+#' @param data RMatrix of input spectra data.
+#' @param width width of the image.
+#' @param height height of the image.
+#' @param alpha smoothing parameter.
+#' @param neighbors connection type (4 or 8).
 #' @export
 graph_smooth_rust <- function(data, width, height, alpha, neighbors) .Call(wrap__graph_smooth_rust, data, width, height, alpha, neighbors)
 

@@ -4,6 +4,11 @@ use faer::Mat;
 use faer::solvers::SpSolver;
 
 /// Solve graph-based spatial smoothing: (I + alpha * L) x = b
+/// @param data RMatrix of input spectra data.
+/// @param width width of the image.
+/// @param height height of the image.
+/// @param alpha smoothing parameter.
+/// @param neighbors connection type (4 or 8).
 /// @export
 #[extendr]
 fn graph_smooth_rust(

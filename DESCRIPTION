@@ -16,6 +16,7 @@ Additional_repositories:
     https://r-hyperspec.github.io/pkg-repo/
 Depends:
     hyperSpec,
+    methods,
     R (>= 4.2)
 Imports:
     hySpc.testthat
