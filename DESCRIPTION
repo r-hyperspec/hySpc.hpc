@@ -35,8 +35,8 @@ Roxygen: list(markdown = TRUE)
 Collate:
     'demo_function.R'
     'extendr-wrappers.R'
-    'graph_smooth_r.R'
     'graphSmooth.R'
+    'graph_smooth_r.R'
     'package.R'
     'unittestdata.R'
 Config/rextendr/version: 0.5.0

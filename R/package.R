@@ -2,6 +2,7 @@
 #'
 #' @import hyperSpec
 #' @import hySpc.testthat
+#' @import methods
 
 "_PACKAGE"
 

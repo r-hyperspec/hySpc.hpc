@@ -12,12 +12,12 @@
 #'
 #' Two backends are available:
 #'
-#' * `backend = "r"` (default): the pure-R baseline
+#' * `backend = "rust"` (default): the high-performance Rust kernel
+#'   ([graph_smooth_rust()]) built on `faer`. Requires the package's
+#'   Rust extension to be compiled. Silently falls back to "r" if unavailable or fails.
+#' * `backend = "r"`: the pure-R baseline
 #'   ([graph_smooth_r()]) built on [Matrix] sparse routines. Used as the
 #'   correctness reference in Stage 1.
-#' * `backend = "rust"`: the high-performance Rust kernel
-#'   ([graph_smooth_rust()]) built on `faer`. Requires the package's
-#'   Rust extension to be compiled.
 #'
 #' Pixel ordering is column-major: spectrum row `k` corresponds to grid
 #' position `i = k %% width` (x), `j = k %/% width` (y), both 0-based.
@@ -41,7 +41,7 @@
 setGeneric(
   "graphSmooth",
   function(x, width, height, alpha = 1.0, neighbors = 4L,
-           backend = c("r", "rust")) {
+           backend = c("rust", "r")) {
     standardGeneric("graphSmooth")
   }
 )
@@ -52,7 +52,7 @@ setMethod(
   "graphSmooth",
   signature(x = "hyperSpec"),
   function(x, width, height, alpha = 1.0, neighbors = 4L,
-           backend = c("r", "rust")) {
+           backend = c("rust", "r")) {
     backend   <- match.arg(backend)
     width     <- as.integer(width)
     height    <- as.integer(height)
@@ -81,8 +81,11 @@ setMethod(
     smoothed <- switch(
       backend,
       r    = graph_smooth_r(spc, width, height, alpha, neighbors),
-      rust = graph_smooth_rust(
-        spc, width, height, alpha, neighbors
+      rust = tryCatch(
+        graph_smooth_rust(spc, width, height, alpha, neighbors),
+        error = function(e) {
+          graph_smooth_r(spc, width, height, alpha, neighbors)
+        }
       )
     )
 
