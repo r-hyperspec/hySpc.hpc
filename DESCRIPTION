@@ -19,7 +19,8 @@ Depends:
     methods,
     R (>= 4.2)
 Imports:
-    hySpc.testthat
+    hySpc.testthat,
+    Matrix
 Suggests:
     knitr,
     covr,
@@ -34,6 +35,7 @@ Roxygen: list(markdown = TRUE)
 Collate:
     'demo_function.R'
     'extendr-wrappers.R'
+    'graph_smooth_r.R'
     'graphSmooth.R'
     'package.R'
     'unittestdata.R'
