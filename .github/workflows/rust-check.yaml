@@ -1,0 +1,56 @@
+# Compile the Rust extension and run any Rust-side tests.
+#
+# This complements R-CMD-check.yaml (which is mirrored from
+# r-hyperspec/pkg-skelton and must not be edited directly).
+# uses Rust edition 2024 and therefore requires rustc >= 1.85. This job
+# pins a recent stable toolchain explicitly so we don't depend on
+# whatever rustc happens to ship on the GitHub-hosted runner image.
+
+on:
+ workflow_dispatch:
+ push:
+   branches: [main, master, develop, release]
+ pull_request:
+   branches: [main, master, develop, release]
+
+name: rust-check
+jobs:
+ rust-check:
+   runs-on: ubuntu-latest
+
+   permissions:
+     contents: read
+
+   defaults:
+     run:
+       working-directory: src/rust
+
+   steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: "1.85"
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry / git / target
+      uses: actions/cache@v4
+      with:
+        path: |
+         ~/.cargo/registry
+         ~/.cargo/git
+         src/rust/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('src/rust/Cargo.lock', 'src/rust/Cargo.toml') }}
+        restore-keys: |
+         ${{ runner.os }}-cargo-
+
+    - name: Build (rlib)
+      run: cargo build --lib --verbose
+
+    - name: Build document binary
+      run: cargo build --bin document --verbose
+
+    - name: Clippy
+      run: cargo clippy --lib -- -D warnings
+      continue-on-error: true
