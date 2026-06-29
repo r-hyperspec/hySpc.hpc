@@ -14,4 +14,22 @@ NULL
 #' @export
 graph_smooth_rust <- function(data, width, height, alpha, neighbors) .Call(wrap__graph_smooth_rust, data, width, height, alpha, neighbors)
 
+#' Compute row sums of an R dgCMatrix using the Rust faer bridge.
+#'
+# extract `p`, `i`, `x` slots of a `dgCMatrix` on
+#' the R side, transfer them through extendr, reconstruct a faer
+#' `SparseColMat` via the `dgcmatrix-faer-bridge` crate, and return the
+#' row sums to R. This is the minimal round-trip that exercises the
+#' dgCMatrix -> faer FFI bridge end-to-end.
+#'
+#' @param p integer vector, dgCMatrix `@p` column pointers (length ncol + 1).
+#' @param i integer vector, dgCMatrix `@i` row indices (length nnz).
+#' @param x numeric vector, dgCMatrix `@x` values (length nnz).
+#' @param nrow integer, number of rows of the matrix.
+#' @param ncol integer, number of columns of the matrix.
+#' @return numeric vector of length `nrow` containing the row sums.
+#' @export
+dgc_row_sums_rust <- function(p, i, x, nrow, ncol) .Call(wrap__dgc_row_sums_rust, p, i, x, nrow, ncol)
+
+
 # nolint end
