@@ -7,50 +7,60 @@
 # whatever rustc happens to ship on the GitHub-hosted runner image.
 
 on:
- workflow_dispatch:
- push:
-   branches: [main, master, develop, release]
- pull_request:
-   branches: [main, master, develop, release]
+  workflow_dispatch:
+  push:
+    branches: [main, master, develop, release]
+  pull_request:
+    branches: [main, master, develop, release]
 
 name: rust-check
 jobs:
- rust-check:
-   runs-on: ubuntu-latest
+  rust-check:
+    runs-on: ubuntu-latest
 
-   permissions:
-     contents: read
+    permissions:
+      contents: read
 
-   defaults:
-     run:
-       working-directory: src/rust
+    defaults:
+      run:
+        working-directory: src/rust
 
-   steps:
-    - uses: actions/checkout@v4
+    steps:
+     - uses: actions/checkout@v4
 
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: "1.85"
-        components: rustfmt, clippy
+     - uses: r-lib/actions/setup-r@v2
+       with:
+         use-public-rspm: true
+         extra-repositories: "https://r-hyperspec.github.io/pkg-repo/"
 
-    - name: Cache cargo registry / git / target
-      uses: actions/cache@v4
-      with:
-        path: |
-         ~/.cargo/registry
-         ~/.cargo/git
-         src/rust/target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('src/rust/Cargo.lock', 'src/rust/Cargo.toml') }}
-        restore-keys: |
-         ${{ runner.os }}-cargo-
+     - uses: r-lib/actions/setup-r-dependencies@v2
+       with:
+         extra-packages: any::devtools, local::.
+         needs: check
 
-    - name: Build (rlib)
-      run: cargo build --lib --verbose
+     - name: Install Rust toolchain
+       uses: dtolnay/rust-toolchain@stable
+       with:
+         toolchain: "1.85"
+         components: rustfmt, clippy
 
-    - name: Build document binary
-      run: cargo build --bin document --verbose
+     - name: Cache cargo registry / git / target
+       uses: actions/cache@v4
+       with:
+         path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          src/rust/target
+         key: ${{ runner.os }}-cargo-${{ hashFiles('src/rust/Cargo.lock', 'src/rust/Cargo.toml') }}
+         restore-keys: |
+          ${{ runner.os }}-cargo-
 
-    - name: Clippy
-      run: cargo clippy --lib -- -D warnings
-      continue-on-error: true
+     - name: Build (rlib)
+       run: cargo build --lib --verbose
+
+     - name: Build document binary
+       run: cargo build --bin document --verbose
+
+     - name: Clippy
+       run: cargo clippy --lib -- -D warnings
+       continue-on-error: true
