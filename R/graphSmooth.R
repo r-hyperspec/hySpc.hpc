@@ -13,16 +13,16 @@
 #' Two backends are available:
 #'
 #' * `backend = "rust"` (default): the high-performance Rust kernel
-#'   ([graph_smooth_rust()]) built on `faer`. Requires the package's
-#'   Rust extension to be compiled. Silently falls back to "r" if unavailable or fails.
-#' * `backend = "r"`: the pure-R baseline
-#'   ([graph_smooth_r()]) built on [Matrix] sparse routines. Used as the
-#'   correctness reference in Stage 1.
-#'
-#' Pixel ordering is column-major: spectrum row `k` corresponds to grid
-#' position `i = k %% width` (x), `j = k %/% width` (y), both 0-based.
-#'
-#' @param x [hyperSpec::hyperSpec] object whose `nrow()` equals
+#'   ([graph_smooth_rust()]). The pixel neighborhood graph is rebuilt in
+#'   Rust with `petgraph` from `width`/`height`/`neighbors` (no adjacency
+#'   matrix crosses the FFI boundary), the Laplacian `L = D - W` is
+#'   assembled as a `faer` sparse matrix, and the system is solved there.
+#'   Requires the package's Rust extension to be compiled. Silently falls
+#'   back to "r" if unavailable or fails.
+#' * `backend = "r"`: the pure-R baseline ([graph_smooth_r()]) built on
+#'   [Matrix] sparse routines. Here the Laplacian is assembled as a
+#'   `dgCMatrix` and solved with [Matrix::solve()]. Used as the
+#'   correctness reference and the pure-R side of the benchmark.
 #'   `width * height`.
 #' @param width,height integer image dimensions.
 #' @param alpha non-negative numeric smoothing strength. Larger values

@@ -3,14 +3,52 @@ use faer::sparse::SparseColMat;
 use faer::Mat;
 use faer::solvers::SpSolver;
 use dgcmatrix_faer_bridge::{dgcmatrix_to_faer, DgCMatrixView};
+use petgraph::graph::{NodeIndex, UnGraph};
+
+/// Build the pixel-neighborhood graph for a `width` x `height` image grid.
+/// Stage 3: each pixel is a node and edges connect spatially adjacent pixels. Pixel ordering is column-major, matching the R side:
+/// node `k` sits at `i = k % width` (x), `j = k / width` (y), both 0-based. Connectivity is configurable:
+/// * `neighbors = 4` (von Neumann): horizontal + vertical edges.
+/// * `neighbors = 8` (Moore): also the two diagonals.
+fn build_pixel_graph(width: usize, height: usize, neighbors: i32) -> UnGraph<(), ()> {
+    let n = width * height;
+    let mut g: UnGraph<(), ()> = UnGraph::with_capacity(n, n * 4);
+    for _ in 0..n {
+        g.add_node(());
+    }
+
+    for k in 0..n {
+        let i = k % width;
+        let j = k / width;
+
+        // Horizontal + vertical (4-connectivity), forward direction only.
+        if i + 1 < width {
+            g.add_edge(NodeIndex::new(k), NodeIndex::new(k + 1), ());
+        }
+        if j + 1 < height {
+            g.add_edge(NodeIndex::new(k), NodeIndex::new(k + width), ());
+        }
+
+        // Diagonals (8-connectivity), forward direction only.
+        if neighbors == 8 {
+            if i + 1 < width && j + 1 < height {
+                g.add_edge(NodeIndex::new(k), NodeIndex::new(k + width + 1), ());
+            }
+            if i > 0 && j + 1 < height {
+                g.add_edge(NodeIndex::new(k), NodeIndex::new(k + width - 1), ());
+            }
+        }
+    }
+
+    g
+}
 
 /// Solve graph-based spatial smoothing: (I + alpha * L) x = b
-/// @param data RMatrix of input spectra data.
-/// @param width width of the image.
-/// @param height height of the image.
-/// @param alpha smoothing parameter.
-/// @param neighbors connection type (4 or 8).
-/// @export
+///
+/// Stage 3: the pixel neighborhood graph is reconstructed in Rust with petgraph` from `width`/`height`/`neighbors` (no adjacency matrix
+/// crosses the FFI boundary), and the combinatorial Laplacian L = D - W` is assembled directly as a `faer` `SparseColMat`. The
+/// linear system `(I + alpha * L) x = b` is then solved band-by-band.
+/// The solve currently uses a sparse Cholesky factorization; Stage 4 will replace this with the iterative CG / BiCGSTAB solvers.
 #[extendr]
 fn graph_smooth_rust(
   data: RMatrix<f64>,
@@ -19,51 +57,44 @@ fn graph_smooth_rust(
   alpha: f64,
   neighbors: i32,
 ) -> extendr_api::Result<RMatrix<f64>> {
+  if neighbors != 4 && neighbors != 8 {
+      return Err(Error::Other(format!(
+          "`neighbors` must be 4 or 8, got {}",
+          neighbors
+      )));
+  }
   let n = width * height;
   if data.nrows() != n {
       return Err(Error::Other(format!("Number of rows in data ({}) must equal width * height ({})", data.nrows(), n)));
   }
    let n_cols = data.ncols();
-   // Construct the CSC components for (I + alpha * L)
+
+   // Stage 3: reconstruct the pixel neighborhood graph in Rust.
+  let graph = build_pixel_graph(width, height, neighbors);
+
+   // Assemble (I + alpha * L) in CSC form straight from the graph, where
+   // L = D - W. Column k holds the diagonal `1 + alpha * deg(k)` plus a
+   // `-alpha` entry for every neighbor of k. faer requires the row
+   // indices within each column to be sorted and unique, so we collect
+   // and sort per column.
   let mut col_ptrs = Vec::with_capacity(n + 1);
   let mut row_indices = Vec::new();
   let mut values = Vec::new();
    for k in 0..n {
       col_ptrs.push(row_indices.len());
-      let i = k % width;
-      let j = k / width;
-    
-      let mut nbrs = Vec::new();
-    
-      // Define neighbor offsets based on connectivity
-      if neighbors == 8 {
-          if j > 0 && i > 0 { nbrs.push(k - width - 1); }
-          if j > 0 { nbrs.push(k - width); }
-          if j > 0 && i + 1 < width { nbrs.push(k - width + 1); }
-          if i > 0 { nbrs.push(k - 1); }
-          nbrs.push(k); // diagonal
-          if i + 1 < width { nbrs.push(k + 1); }
-          if j + 1 < height && i > 0 { nbrs.push(k + width - 1); }
-          if j + 1 < height { nbrs.push(k + width); }
-          if j + 1 < height && i + 1 < width { nbrs.push(k + width + 1); }
-      } else {
-          // Default 4 connectivity
-          if j > 0 { nbrs.push(k - width); }
-          if i > 0 { nbrs.push(k - 1); }
-          nbrs.push(k); // diagonal
-          if i + 1 < width { nbrs.push(k + 1); }
-          if j + 1 < height { nbrs.push(k + width); }
+
+      let mut entries: Vec<(usize, f64)> = Vec::new();
+      let mut degree = 0.0;
+      for nb in graph.neighbors(NodeIndex::new(k)) {
+          entries.push((nb.index(), -alpha));
+          degree += 1.0;
       }
-    
-      let degree = nbrs.len() as f64 - 1.0;
-    
-      for &m in &nbrs {
-          row_indices.push(m);
-          if m == k {
-              values.push(1.0 + alpha * degree);
-          } else {
-              values.push(-alpha);
-          }
+      entries.push((k, 1.0 + alpha * degree));
+      entries.sort_by_key(|&(r, _)| r);
+
+      for (r, v) in entries {
+          row_indices.push(r);
+          values.push(v);
       }
   }
   col_ptrs.push(row_indices.len());
@@ -104,19 +135,8 @@ fn graph_smooth_rust(
 
 /// Compute row sums of an R dgCMatrix using the Rust faer bridge.
 ///
-/// Extract `p`, `i`, `x` slots of a `dgCMatrix` on
-/// the R side, transfer them through extendr, reconstruct a faer
-/// `SparseColMat` via the `dgcmatrix-faer-bridge` crate, and return the
-/// row sums to R. This is the minimal round-trip that exercises the
-/// dgCMatrix -> faer FFI bridge end-to-end.
-///
-/// @param p integer vector, dgCMatrix `@p` column pointers (length ncol + 1).
-/// @param i integer vector, dgCMatrix `@i` row indices (length nnz).
-/// @param x numeric vector, dgCMatrix `@x` values (length nnz).
-/// @param nrow integer, number of rows of the matrix.
-/// @param ncol integer, number of columns of the matrix.
-/// @return numeric vector of length `nrow` containing the row sums.
-/// @export
+/// Extract `p`, `i`, `x` slots of a `dgCMatrix` on the R side, transfer them through extendr, reconstruct a faer SparseColMat` via the `dgcmatrix-faer-bridge` crate,
+///  and return the row sums to R. This is the minimal round-trip that exercises the dgCMatrix -> faer FFI bridge end-to-end.
 #[extendr]
 fn dgc_row_sums_rust(
   p: Robj,
