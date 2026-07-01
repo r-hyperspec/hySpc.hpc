@@ -27,6 +27,7 @@ name: Update files across repos
 
 jobs:
   update:
+    if: ${{ github.event.repository.name == 'pkg-skeleton' }}
     runs-on: ubuntu-latest
     env:
       REPO: ${{ github.event.repository.name }}
