@@ -7,11 +7,19 @@ NULL
 
 #' Solve graph-based spatial smoothing: (I + alpha * L) x = b
 #'
-#' Stage 3: the pixel neighborhood graph is reconstructed in Rust with petgraph` from `width`/`height`/`neighbors` (no adjacency matrix
-#' crosses the FFI boundary), and the combinatorial Laplacian L = D - W` is assembled directly as a `faer` `SparseColMat`. The
-#' linear system `(I + alpha * L) x = b` is then solved band-by-band.
-#' The solve currently uses a sparse Cholesky factorization; Stage 4 will replace this with the iterative CG / BiCGSTAB solvers.
-graph_smooth_rust <- function(data, width, height, alpha, neighbors) .Call(wrap__graph_smooth_rust, data, width, height, alpha, neighbors)
+#' The pixel neighborhood graph is reconstructed in
+#' Rust with `petgraph` from `width`/`height`/`neighbors` (no adjacency
+#' matrix crosses the FFI boundary), the combinatorial Laplacian
+#' `L = D - W` is assembled in CSC form, and `(I + alpha * L) x = b` is
+#' solved band-by-band with an iterative Krylov solver (CG or BiCGSTAB).
+#' @param data RMatrix of input spectra data.
+#' @param width width of the image.
+#' @param height height of the image.
+#' @param alpha smoothing parameter.
+#' @param neighbors connection type (4 or 8).
+#' @param solver iterative method, `"cg"` or `"bicgstab"`.
+#' @export
+graph_smooth_rust <- function(data, width, height, alpha, neighbors, solver) .Call(wrap__graph_smooth_rust, data, width, height, alpha, neighbors, solver)
 
 #' Compute row sums of an R dgCMatrix using the Rust faer bridge.
 #'

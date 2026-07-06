@@ -16,9 +16,10 @@
 #'   ([graph_smooth_rust()]). The pixel neighborhood graph is rebuilt in
 #'   Rust with `petgraph` from `width`/`height`/`neighbors` (no adjacency
 #'   matrix crosses the FFI boundary), the Laplacian `L = D - W` is
-#'   assembled as a `faer` sparse matrix, and the system is solved there.
-#'   Requires the package's Rust extension to be compiled. Silently falls
-#'   back to "r" if unavailable or fails.
+#'   assembled in sparse (CSC) form, and each band is solved with an
+#'   iterative Krylov method (`solver`: CG or BiCGSTAB). Requires the
+#'   package's Rust extension to be compiled. Silently falls back to "r"
+#'   if unavailable or fails.
 #' * `backend = "r"`: the pure-R baseline ([graph_smooth_r()]) built on
 #'   [Matrix] sparse routines. Here the Laplacian is assembled as a
 #'   `dgCMatrix` and solved with [Matrix::solve()]. Used as the
@@ -31,6 +32,10 @@
 #'   neighborhood connectivity.
 #' @param backend one of `"r"` or `"rust"`; selects the solver
 #'   implementation.
+#' @param solver iterative Krylov method used by the Rust backend, either
+#'   `"cg"` (Conjugate Gradient, the default; `I + alpha L` is symmetric
+#'   positive-definite) or `"bicgstab"` (BiCGSTAB, for the general case).
+#'   Ignored by the R backend, which uses a direct [Matrix::solve()].
 #'
 #' @return A [hyperSpec::hyperSpec] object with the same metadata as
 #'   `x` whose `spc` slot has been replaced by the smoothed spectra.
@@ -41,7 +46,7 @@
 setGeneric(
   "graphSmooth",
   function(x, width, height, alpha = 1.0, neighbors = 4L,
-           backend = c("rust", "r")) {
+           backend = c("rust", "r"), solver = c("cg", "bicgstab")) {
     standardGeneric("graphSmooth")
   }
 )
@@ -52,8 +57,9 @@ setMethod(
   "graphSmooth",
   signature(x = "hyperSpec"),
   function(x, width, height, alpha = 1.0, neighbors = 4L,
-           backend = c("rust", "r")) {
+           backend = c("rust", "r"), solver = c("cg", "bicgstab")) {
     backend   <- match.arg(backend)
+    solver    <- match.arg(solver)
     width     <- as.integer(width)
     height    <- as.integer(height)
     neighbors <- as.integer(neighbors)
@@ -82,7 +88,7 @@ setMethod(
       backend,
       r    = graph_smooth_r(spc, width, height, alpha, neighbors),
       rust = tryCatch(
-        graph_smooth_rust(spc, width, height, alpha, neighbors),
+        graph_smooth_rust(spc, width, height, alpha, neighbors, solver),
         error = function(e) {
           graph_smooth_r(spc, width, height, alpha, neighbors)
         }
