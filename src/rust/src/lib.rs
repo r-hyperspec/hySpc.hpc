@@ -2,6 +2,7 @@ use extendr_api::prelude::*;
 use faer::sparse::SparseColMat;
 use dgcmatrix_faer_bridge::{dgcmatrix_to_faer, DgCMatrixView};
 use petgraph::graph::{NodeIndex, UnGraph};
+use rayon::prelude::*;
 
 /// `y <- A * x` for a matrix `A` stored in compressed-sparse-column (CSC)
 /// form (`col_ptrs`, `row_indices`, `values`).
@@ -315,17 +316,23 @@ fn graph_smooth_rust(
   let max_iter = n + 1000;
 
   let mut out_data = vec![0.0f64; n * n_cols];
-  for jcol in 0..n_cols {
-      let b = &r_slice[jcol * n..jcol * n + n];
-      let x = match solver {
-          "bicgstab" => solve_bicgstab(n, &col_ptrs, &row_indices, &values, b, tol, max_iter),
-          _ => solve_cg(n, &col_ptrs, &row_indices, &values, b, tol, max_iter),
-      }
-      .map_err(|e| {
-          Error::Other(format!("{} solver failed on band {}: {}", solver, jcol, e))
-      })?;
-      out_data[jcol * n..jcol * n + n].copy_from_slice(&x);
-  }
+  
+  out_data
+      .par_chunks_mut(n)
+      .enumerate()
+      .try_for_each(|(jcol, out_chunk)| -> std::result::Result<(), String> {
+          let b = &r_slice[jcol * n..jcol * n + n];
+          let x = match solver {
+              "bicgstab" => solve_bicgstab(n, &col_ptrs, &row_indices, &values, b, tol, max_iter),
+              _ => solve_cg(n, &col_ptrs, &row_indices, &values, b, tol, max_iter),
+          }
+          .map_err(|e| {
+              format!("{} solver failed on band {}: {}", solver, jcol, e)
+          })?;
+          out_chunk.copy_from_slice(&x);
+          Ok(())
+      })
+      .map_err(|e| Error::Other(e))?;
 
    Ok(RMatrix::new_matrix(n, n_cols, |r, c| out_data[c * n + r]))
 }

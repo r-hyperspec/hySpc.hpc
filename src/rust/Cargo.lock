@@ -467,6 +467,7 @@ dependencies = [
  "extendr-api",
  "faer",
  "petgraph",
+ "rayon",
 ]
 
 [[package]]

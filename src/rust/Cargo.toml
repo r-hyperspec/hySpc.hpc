@@ -17,6 +17,7 @@ path = 'document.rs'
 extendr-api = '*'
 faer = "0.19"
 petgraph = "0.6"
+rayon = "1.10"
 dgcmatrix-faer-bridge = { git = "https://github.com/shinigami-777/dgcmatrix-faer-bridge" }
 
 [profile.release]

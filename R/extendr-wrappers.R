@@ -10,8 +10,11 @@ NULL
 #' The pixel neighborhood graph is reconstructed in
 #' Rust with `petgraph` from `width`/`height`/`neighbors` (no adjacency
 #' matrix crosses the FFI boundary), the combinatorial Laplacian
-#' `L = D - W` is assembled in CSC form, and `(I + alpha * L) x = b` is
-#' solved band-by-band with an iterative Krylov solver (CG or BiCGSTAB).
+#' `L = D - W` is assembled directly in CSC form, and the linear system
+#' `(I + alpha * L) x = b` is solved band-by-band with an iterative
+#' Krylov solver: Conjugate Gradient (`"cg"`, the default -- the
+#' operator is symmetric positive-definite) or BiCGSTAB (`"bicgstab"`).
+#'
 #' @param data RMatrix of input spectra data.
 #' @param width width of the image.
 #' @param height height of the image.
