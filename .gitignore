@@ -28,11 +28,6 @@
 # Local pkgdown files
 docs/
 
-# Unit tests
-tests/testthat/Rplots.pdf
-tests/testthat/test_*.R
-tests/testthat/test-*.R
-
 # Vignettes
 vignettes/*-pkg.bib
 vignettes/*.html
