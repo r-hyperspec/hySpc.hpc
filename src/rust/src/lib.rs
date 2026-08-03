@@ -394,6 +394,29 @@ extendr_module! {
   mod hy_spc_hpc;
   fn graph_smooth_rust;
   fn dgc_row_sums_rust;
+  fn pixel_graph_stats_rust;
+}
+
+/// Diagnostic helper to expose pixel graph connectivity stats to R
+#[extendr]
+fn pixel_graph_stats_rust(width: usize, height: usize, neighbors: i32) -> extendr_api::Result<List> {
+    if neighbors != 4 && neighbors != 8 {
+        return Err(Error::Other(format!(
+            "`neighbors` must be 4 or 8, got {}",
+            neighbors
+        )));
+    }
+    let g = build_pixel_graph(width, height, neighbors);
+    let mut degrees = vec![0_i32; width * height];
+    for i in 0..(width * height) {
+        degrees[i] = g.neighbors(petgraph::graph::NodeIndex::new(i)).count() as i32;
+    }
+    
+    Ok(list!(
+        nodes = g.node_count() as i32,
+        edges = g.edge_count() as i32,
+        degrees = degrees
+    ))
 }
 
 #[cfg(test)]
