@@ -1,0 +1,7 @@
+library(hySpc.hpc)
+res <- laplacian_matrix_rust(4L, 3L, 4L)
+str(res)
+L <- Matrix::sparseMatrix(p=res$p, i=res$i, x=res$x, dims=c(res$n, res$n), index1=FALSE)
+str(L)
+print(dim(L))
+print(diag(L))

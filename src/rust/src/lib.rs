@@ -395,6 +395,7 @@ extendr_module! {
   fn graph_smooth_rust;
   fn dgc_row_sums_rust;
   fn pixel_graph_stats_rust;
+  fn laplacian_matrix_rust;
 }
 
 /// Diagnostic helper to expose pixel graph connectivity stats to R
@@ -416,6 +417,39 @@ fn pixel_graph_stats_rust(width: usize, height: usize, neighbors: i32) -> extend
         nodes = g.node_count() as i32,
         edges = g.edge_count() as i32,
         degrees = degrees
+    ))
+}
+
+/// Diagnostic helper to expose the combinatorial Laplacian L = D - W
+#[extendr]
+fn laplacian_matrix_rust(width: usize, height: usize, neighbors: i32) -> extendr_api::Result<List> {
+    if neighbors != 4 && neighbors != 8 {
+        return Err(Error::Other(format!(
+            "`neighbors` must be 4 or 8, got {}",
+            neighbors
+        )));
+    }
+    // L corresponds to A = I + alpha * L with alpha = 1.0, minus I
+    let (n, col_ptrs, row_indices, mut values) = assemble_shifted_laplacian(width, height, neighbors, 1.0);
+    
+    // Subtract I to get L
+    for j in 0..n {
+        for idx in col_ptrs[j]..col_ptrs[j + 1] {
+            if row_indices[idx] == j {
+                values[idx] -= 1.0;
+            }
+        }
+    }
+    
+    // Convert Vec<usize> to Vec<i32> for R (0-indexed)
+    let p = col_ptrs.iter().map(|&x| x as i32).collect::<Vec<i32>>();
+    let i = row_indices.iter().map(|&x| x as i32).collect::<Vec<i32>>();
+    
+    Ok(list!(
+        p = p,
+        i = i,
+        x = values,
+        n = n as i32
     ))
 }
 

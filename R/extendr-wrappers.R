@@ -33,4 +33,7 @@ dgc_row_sums_rust <- function(p, i, x, nrow, ncol) .Call(wrap__dgc_row_sums_rust
 #' Diagnostic helper to expose pixel graph connectivity stats to R
 pixel_graph_stats_rust <- function(width, height, neighbors) .Call(wrap__pixel_graph_stats_rust, width, height, neighbors)
 
+#' Diagnostic helper to expose the combinatorial Laplacian L = D - W
+laplacian_matrix_rust <- function(width, height, neighbors) .Call(wrap__laplacian_matrix_rust, width, height, neighbors)
+
 # nolint end
