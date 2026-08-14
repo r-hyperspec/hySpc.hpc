@@ -55,3 +55,6 @@ jobs:
       - name: Clippy
         run: cargo clippy --lib -- -D warnings
         continue-on-error: true
+
+      - name: Run tests
+        run: cargo test --verbose
