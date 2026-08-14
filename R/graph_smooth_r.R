@@ -4,11 +4,11 @@
 #' used as a correctness reference for the Rust kernel
 #' ([graph_smooth_rust()]). Builds the pixel adjacency, the combinatorial
 #' graph Laplacian \eqn{L = D - W} on a `width` x `height` grid, and
-#' solves the sparse linear system
+#' solves the dense linear system
 #'
 #' \deqn{(I + \alpha L)\, X = B}
 #'
-#' band-by-band using [Matrix::solve()]. With `neighbors = 4` or `8`,
+#' band-by-band using dense `solve()`. With `neighbors = 4` or `8`,
 #' `L` is symmetric positive semi-definite, so `I + alpha * L` is SPD for
 #' any `alpha > 0` and the solve is well-posed.
 #'
@@ -72,7 +72,7 @@ graph_smooth_r <- function(data, width, height, alpha = 1.0, neighbors = 4L) {
 
   L <- build_laplacian_r(width, height, neighbors)
   A <- Matrix::Diagonal(n) + alpha * L
-  out <- Matrix::solve(A, data)
+  out <- solve(as.matrix(A), data)
   as.matrix(out)
 }
 
