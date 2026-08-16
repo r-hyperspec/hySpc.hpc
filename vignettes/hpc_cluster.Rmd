@@ -149,6 +149,12 @@ results <- future_lapply(scan_files, smooth_cluster_worker)
 
 In cloud environments across global regions—from Frankfurt (`europe-west3` / `eu-central-1`) and Tokyo (`asia-northeast1`) to Mumbai (`asia-south1`) and Northern Virginia (`us-east-1`)—large spectral collections are stored in object storage data lakes and processed on-demand using spot instances.
 
+### Use Case: Weather Sciences & Earth Observation (NOAA)
+
+The public cloud tier is increasingly the architecture of choice for national Earth observation and meteorology. For example, the **U.S. National Oceanic and Atmospheric Administration (NOAA)** has transitioned its weather-predicting supercomputers (formerly HPE Cray systems) to **Google Cloud**. 
+
+By leveraging **Google Cloud H4D VMs** (built on AMD Epyc processors) and **Google Cloud Batch** for scheduling, agencies can run hyperspectral remote sensing operations (like satellite sounder data processing) with the elasticity of the cloud—spinning up thousands of cores during severe weather events and winding down during calmer periods.
+
 ### Cloud Storage Data Lakes (GCS & S3)
 
 * **Google Cloud Storage (GCS):** Stored in regional or dual-regional buckets (e.g., `gs://spectral-data-lake-europe-west3/`).
