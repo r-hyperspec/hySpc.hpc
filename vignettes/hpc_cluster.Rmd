@@ -1,0 +1,129 @@
+---
+title: "Deploying hySpc.hpc on a High Performance Computing (HPC) Cluster"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Deploying hySpc.hpc on a High Performance Computing (HPC) Cluster}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+The `hySpc.hpc` package derives its "High-Performance" name from its ability to dramatically accelerate spatial smoothing operations on hyperspectral images. It achieves this by bridging R with Rust, utilizing the `faer` crate for highly optimized sparse linear algebra, and the `rayon` crate for multi-threading.
+
+However, `hySpc.hpc` is designed for **intra-node acceleration**. This means it utilizes all available CPU cores *on a single machine* to parallelize operations across the wavelength bands of a single hyperspectral image.
+
+In many real-world scenarios—such as processing hundreds or thousands of distinct hyperspectral images—you will need **inter-node acceleration** (i.e., cluster computing). This vignette explains how to bridge the gap between `hySpc.hpc`'s internal multi-threading and an external job scheduler like **Slurm**, **SGE**, or **Torque** using the `future` ecosystem.
+
+## The Architecture of Parallelism
+
+When scaling hyperspectral processing, you are dealing with two levels of parallelism:
+
+1. **Inner Loop (Rust/Rayon):** `hySpc.hpc` automatically distributes the smoothing of $k$ distinct wavelength bands across the CPU cores available on the machine executing the function.
+2. **Outer Loop (Slurm/Future):** You want to distribute $N$ distinct hyperspectral images across multiple compute nodes in a cluster.
+
+> **CRITICAL:** If you do not manage these two layers carefully, you will encounter the **Nested Parallelism Trap**. If a Slurm node is allocated 4 CPU cores for an R worker, but Rust's Rayon detects that the physical hardware has 64 cores, Rayon will spawn 64 threads. If you have multiple R workers on that same node, you will massively oversubscribe the CPU, causing severe performance degradation or job termination by the cluster administrator.
+
+## Setting up `future.batchtools`
+
+The most robust way to run R code on an HPC cluster is using the `future` framework alongside `future.batchtools`. This abstracts away the specifics of the job scheduler.
+
+First, ensure you have the necessary packages:
+
+```{r eval=FALSE}
+install.packages(c("future", "future.batchtools", "future.apply"))
+```
+
+### Creating a Slurm Template
+
+You need a template file (`slurm.tmpl`) that tells `batchtools` how to format the bash script sent to the `sbatch` command. Save this file in your working directory.
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=<%= job.name %>
+#SBATCH --output=<%= log.file %>
+#SBATCH --error=<%= log.file %>
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=<%= resources$ncpus %>
+#SBATCH --mem-per-cpu=<%= resources$memory %>
+#SBATCH --time=<%= resources$walltime %>
+
+Rscript -e 'batchtools::doJobCollection("<%= uri %>")'
+```
+
+### Configuring the R Environment
+
+Next, configure the `future` plan in your R script to use this template.
+
+```{r eval=FALSE}
+library(future.batchtools)
+library(future.apply)
+library(hySpc.hpc)
+
+# Define the compute resources for EACH worker job
+# e.g., We want each worker to get 4 CPU cores and 8GB RAM per core.
+resources <- list(
+  ncpus = 4, 
+  memory = 8000, 
+  walltime = "02:00:00"
+)
+
+# Tell the future framework to use Slurm for asynchronous jobs
+plan(batchtools_slurm, template = "slurm.tmpl", resources = resources)
+```
+
+## Dispatching `hySpc.hpc` to the Cluster
+
+Assume we have a list of `hyperSpec` objects representing different biological samples or scans, and we want to apply spatial smoothing to all of them.
+
+Here is the complete workflow to dispatch this safely to the cluster:
+
+```{r eval=FALSE}
+# Assume `spc_list` is a list of 100 hyperSpec objects
+spc_list <- load_my_hyperspectral_data() 
+
+# Define the smoothing function that will run on the cluster nodes
+smooth_wrapper <- function(spc) {
+  # -------------------------------------------------------------
+  # CRITICAL: THREAD MANAGEMENT
+  # We MUST tell Rust/Rayon to restrict its thread pool to the 
+  # number of cores officially allocated to this job by Slurm.
+  # -------------------------------------------------------------
+  allocated_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
+  Sys.setenv(RAYON_NUM_THREADS = allocated_cores)
+  
+  # Now it is safe to run the high-performance Rust backend
+  # It will use exactly `allocated_cores` threads.
+  spc_smoothed <- graphSmooth(spc, 
+                              width = 512, 
+                              height = 512, 
+                              alpha = 2.0, 
+                              neighbors = 8)
+  
+  return(spc_smoothed)
+}
+
+# Dispatch the jobs to the Slurm cluster asynchronously
+# future_lapply acts just like lapply, but distributes the work 
+# across the compute nodes defined in our `plan()`.
+smoothed_results <- future_lapply(spc_list, smooth_wrapper)
+```
+
+### What happens under the hood?
+
+1. `future_lapply` breaks the `spc_list` into chunks.
+2. It generates batch scripts using `slurm.tmpl` and submits them via `sbatch`.
+3. The Slurm scheduler allocates a node with exactly 4 CPU cores for each job.
+4. When the R worker starts on the compute node, the `smooth_wrapper` reads the `SLURM_CPUS_PER_TASK` environment variable.
+5. It explicitly restricts `RAYON_NUM_THREADS = 4`.
+6. Rust's `faer` and `rayon` crates perform the spatial Laplacian smoothing using exactly 4 threads, maximizing performance without violating cluster policies.
+7. The results are automatically collected and returned to your master R session.
+
+By combining the inter-node distribution of `future.batchtools` with the intra-node speed of `hySpc.hpc`, you can process massive hyperspectral datasets in a fraction of the time.
