@@ -1,8 +1,8 @@
 ---
-title: "Deploying hySpc.hpc on a High Performance Computing (HPC) Cluster"
+title: "Distributed Spectroscopy: Global Supercomputing Consortia and Cloud Data Centers"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Deploying hySpc.hpc on a High Performance Computing (HPC) Cluster}
+  %\VignetteIndexEntry{Distributed Spectroscopy: Global Supercomputing Consortia and Cloud Data Centers}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -16,34 +16,52 @@ knitr::opts_chunk$set(
 
 ## Introduction
 
-The `hySpc.hpc` package derives its "High-Performance" name from its ability to dramatically accelerate spatial smoothing operations on hyperspectral images. It achieves this by bridging R with Rust, utilizing the `faer` crate for highly optimized sparse linear algebra, and the `rayon` crate for multi-threading.
+The `hySpc.hpc` package derives its "High-Performance" name from its ability to dramatically accelerate spatial smoothing operations on hyperspectral images. It achieves this by bridging R with Rust, utilizing the `faer` crate for sparse linear algebra and the `rayon` crate for multi-threaded parallel execution.
 
-However, `hySpc.hpc` is designed for **intra-node acceleration**. This means it utilizes all available CPU cores *on a single machine* to parallelize operations across the wavelength bands of a single hyperspectral image.
+However, `hySpc.hpc` is fundamentally an **intra-node accelerator**: it saturates all available CPU cores *on a single physical machine* to smooth across multiple wavelength bands simultaneously.
 
-In many real-world scenarios—such as processing hundreds or thousands of distinct hyperspectral images—you will need **inter-node acceleration** (i.e., cluster computing). This vignette explains how to bridge the gap between `hySpc.hpc`'s internal multi-threading and an external job scheduler like **Slurm**, **SGE**, or **Torque** using the `future` ecosystem.
+When processing large-scale spectral campaigns—such as thousands of Raman maps, FTIR field scans, or remote sensing cubes—computational spectroscopy demands an **inter-node architecture**. This guide details how to orchestrate `hySpc.hpc` across a three-tiered international infrastructure landscape:
 
-## The Architecture of Parallelism
+1. **Global Institutional & National Supercomputing Consortia**: Academic and national research facilities across Germany, Japan, India, Europe, and the Americas:
+   * **Germany**: The Gauss Centre for Supercomputing (**GCS**) comprising **JSC Jülich** (JUPITER/JUWELS), **LRZ Garching/Munich** (SuperMUC-NG), and **HLRS Stuttgart** (Hawk), alongside the National High Performance Computing (**NHR**) university alliance and **MPCDF** (Max Planck).
+   * **Japan**: **RIKEN R-CCS** (Fugaku), **Tokyo Tech** (TSUBAME), **University of Tokyo ITC** (Wisteria/BDEC-01), **Kyoto University ACCMS**, and the **SINET6** network.
+   * **India**: The **National Supercomputing Mission (NSM)**, **C-DAC** (PARAM Siddhi-AI, PARAM Brahma), **IISc Bangalore** (Param Pravega), and the **IIT** consortia.
+   * **Europe-wide**: **EuroHPC Joint Undertaking** (LUMI, Leonardo, MareNostrum) and **ARCHER2** (UK).
+   * **Americas**: **NSF ACCESS** (TACC Frontera, SDSC Expanse, NCSA Delta) and regional consortia like **MGHPCC** in Massachusetts (MIT Engaging, Harvard FASRC, UMass Unity, BU SCC).
+2. **Public Cloud Data Centers**: Google Cloud Platform (**GCP**), Amazon Web Services (**AWS**), and Microsoft Azure utilizing object storage data lakes and serverless batch computing.
+3. **The Hybrid Bridge**: Slurm/PBS/OpenPBS cloud bursting, Apptainer/Singularity container portability, and provenance capture via `provBookR`.
 
-When scaling hyperspectral processing, you are dealing with two levels of parallelism:
+---
 
-1. **Inner Loop (Rust/Rayon):** `hySpc.hpc` automatically distributes the smoothing of $k$ distinct wavelength bands across the CPU cores available on the machine executing the function.
-2. **Outer Loop (Slurm/Future):** You want to distribute $N$ distinct hyperspectral images across multiple compute nodes in a cluster.
+## 1. The Global Landscape of Compute
 
-> **CRITICAL:** If you do not manage these two layers carefully, you will encounter the **Nested Parallelism Trap**. If a Slurm node is allocated 4 CPU cores for an R worker, but Rust's Rayon detects that the physical hardware has 64 cores, Rayon will spawn 64 threads. If you have multiple R workers on that same node, you will massively oversubscribe the CPU, causing severe performance degradation or job termination by the cluster administrator.
+<p align="center">
+  <img src="figures/hpc_architecture.svg" alt="HPC Architecture" width="100%">
+</p>
 
-## Setting up `future.batchtools`
+---
 
-The most robust way to run R code on an HPC cluster is using the `future` framework alongside `future.batchtools`. This abstracts away the specifics of the job scheduler.
+## 2. Intra-Node vs. Inter-Node Parallelism
 
-First, ensure you have the necessary packages:
+When scaling hyperspectral processing, you are coordinating two distinct layers of parallelism:
 
-```{r eval=FALSE}
-install.packages(c("future", "future.batchtools", "future.apply"))
-```
+1. **Inner Loop (Rust / Rayon):** `hySpc.hpc` distributes the smoothing of $k$ distinct wavelength bands across the CPU cores available on the executing node.
+2. **Outer Loop (Slurm / PBS / Cloud Batch):** A job scheduler distributes $N$ distinct hyperspectral image cubes across multiple compute nodes.
 
-### Creating a Slurm Template
+> **CRITICAL: The Nested Parallelism Trap**
+> If a supercomputing node allocates 4 or 8 CPU cores to an R worker, but Rust's `rayon` detects a physical 64-core or 128-core motherboard (common on JSC, LRZ, or RIKEN nodes), Rayon will attempt to spawn threads for every physical core. When multiple R workers share a node, this creates severe CPU oversubscription. You **must** set `RAYON_NUM_THREADS` explicitly inside each worker task to match the allocated slot count.
 
-You need a template file (`slurm.tmpl`) that tells `batchtools` how to format the bash script sent to the `sbatch` command. Save this file in your working directory.
+---
+
+## 3. Private Tier: Institutional HPC Consortia
+
+Whether running across German centers (**JSC Jülich, LRZ Munich, HLRS**), Japanese national systems (**RIKEN, TSUBAME**), Indian facilities (**C-DAC, IISc**), or North American consortia (**MGHPCC, NSF ACCESS**), jobs are standardly managed by schedulers like **Slurm** or **PBS Professional**.
+
+Using R's `future` and `future.batchtools` ecosystem, R users can submit distributed workloads across these international clusters without rewriting core analytical code.
+
+### Slurm Configuration (`slurm-cluster.tmpl`)
+
+For Slurm-managed environments (standard across JSC, LRZ, MGHPCC, TACC, and EuroHPC):
 
 ```bash
 #!/bin/bash
@@ -54,76 +72,147 @@ You need a template file (`slurm.tmpl`) that tells `batchtools` how to format th
 #SBATCH --cpus-per-task=<%= resources$ncpus %>
 #SBATCH --mem-per-cpu=<%= resources$memory %>
 #SBATCH --time=<%= resources$walltime %>
+#SBATCH --partition=<%= resources$partition %>
 
+module load R
 Rscript -e 'batchtools::doJobCollection("<%= uri %>")'
 ```
 
-### Configuring the R Environment
+### PBS Professional Configuration (`pbs-cluster.tmpl`)
 
-Next, configure the `future` plan in your R script to use this template.
+For PBS/OpenPBS-managed environments (frequently deployed across C-DAC PARAM facilities and Japanese university centers):
+
+```bash
+#!/bin/bash
+#PBS -N <%= job.name %>
+#PBS -o <%= log.file %>
+#PBS -e <%= log.file %>
+#PBS -l select=1:ncpus=<%= resources$ncpus %>:mem=<%= resources$memory %>mb
+#PBS -l walltime=<%= resources$walltime %>
+#PBS -q <%= resources$queue %>
+
+cd $PBS_O_WORKDIR
+module load R
+Rscript -e 'batchtools::doJobCollection("<%= uri %>")'
+```
+
+### R Dispatch Script
 
 ```{r eval=FALSE}
 library(future.batchtools)
 library(future.apply)
+library(hyperSpec)
 library(hySpc.hpc)
 
-# Define the compute resources for EACH worker job
-# e.g., We want each worker to get 4 CPU cores and 8GB RAM per core.
+# Define compute resources matching institutional queue limits
+# (e.g., JSC 'batch', LRZ 'mpp3', MIT 'sched_mit_hill', TACC 'normal')
 resources <- list(
-  ncpus = 4, 
-  memory = 8000, 
-  walltime = "02:00:00"
+  ncpus = 8,
+  memory = 4000,          # 4 GB per core = 32 GB total
+  walltime = "02:00:00",
+  partition = "standard"  # e.g., 'batch', 'gpu', 'compute', 'standard'
 )
 
-# Tell the future framework to use Slurm for asynchronous jobs
-plan(batchtools_slurm, template = "slurm.tmpl", resources = resources)
-```
+# Configure the future plan (select template based on cluster scheduler)
+plan(batchtools_slurm, template = "slurm-cluster.tmpl", resources = resources)
+# Or for PBS systems:
+# plan(batchtools_custom, template = "pbs-cluster.tmpl", resources = resources)
 
-## Dispatching `hySpc.hpc` to the Cluster
-
-Assume we have a list of `hyperSpec` objects representing different biological samples or scans, and we want to apply spatial smoothing to all of them.
-
-Here is the complete workflow to dispatch this safely to the cluster:
-
-```{r eval=FALSE}
-# Assume `spc_list` is a list of 100 hyperSpec objects
-spc_list <- load_my_hyperspectral_data() 
-
-# Define the smoothing function that will run on the cluster nodes
-smooth_wrapper <- function(spc) {
-  # -------------------------------------------------------------
-  # CRITICAL: THREAD MANAGEMENT
-  # We MUST tell Rust/Rayon to restrict its thread pool to the 
-  # number of cores officially allocated to this job by Slurm.
-  # -------------------------------------------------------------
-  allocated_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
-  Sys.setenv(RAYON_NUM_THREADS = allocated_cores)
+# Worker wrapper function
+smooth_cluster_worker <- function(spc_file) {
+  # Enforce core affinity for Rust/Rayon across Slurm or PBS
+  cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", 
+                      Sys.getenv("PBS_NCPUS", "1")))
+  Sys.setenv(RAYON_NUM_THREADS = cores)
   
-  # Now it is safe to run the high-performance Rust backend
-  # It will use exactly `allocated_cores` threads.
+  # Read from high-performance shared storage (Lustre, GPFS/Spectrum Scale, Ceph, NFS)
+  spc <- readRDS(spc_file)
+  
+  # Execute high-performance Rust sparse Laplacian smoother
   spc_smoothed <- graphSmooth(spc, 
-                              width = 512, 
-                              height = 512, 
+                              width = 256, 
+                              height = 256, 
                               alpha = 2.0, 
                               neighbors = 8)
   
   return(spc_smoothed)
 }
 
-# Dispatch the jobs to the Slurm cluster asynchronously
-# future_lapply acts just like lapply, but distributes the work 
-# across the compute nodes defined in our `plan()`.
-smoothed_results <- future_lapply(spc_list, smooth_wrapper)
+# Distribute 500 scans across cluster compute nodes
+scan_files <- list.files("/shared/spectral_lab/scans/", pattern = "\\.rds$", full.names = TRUE)
+results <- future_lapply(scan_files, smooth_cluster_worker)
 ```
 
-### What happens under the hood?
+---
 
-1. `future_lapply` breaks the `spc_list` into chunks.
-2. It generates batch scripts using `slurm.tmpl` and submits them via `sbatch`.
-3. The Slurm scheduler allocates a node with exactly 4 CPU cores for each job.
-4. When the R worker starts on the compute node, the `smooth_wrapper` reads the `SLURM_CPUS_PER_TASK` environment variable.
-5. It explicitly restricts `RAYON_NUM_THREADS = 4`.
-6. Rust's `faer` and `rayon` crates perform the spatial Laplacian smoothing using exactly 4 threads, maximizing performance without violating cluster policies.
-7. The results are automatically collected and returned to your master R session.
+## 4. Public Tier: Cloud Data Centers (GCP, AWS, Azure)
 
-By combining the inter-node distribution of `future.batchtools` with the intra-node speed of `hySpc.hpc`, you can process massive hyperspectral datasets in a fraction of the time.
+In cloud environments across global regions—from Frankfurt (`europe-west3` / `eu-central-1`) and Tokyo (`asia-northeast1`) to Mumbai (`asia-south1`) and Northern Virginia (`us-east-1`)—large spectral collections are stored in object storage data lakes and processed on-demand using spot instances.
+
+### Cloud Storage Data Lakes (GCS & S3)
+
+* **Google Cloud Storage (GCS):** Stored in regional or dual-regional buckets (e.g., `gs://spectral-data-lake-europe-west3/`).
+* **Amazon S3:** Stored with S3 Express One Zone or S3 Standard in regional zones (e.g., `eu-central-1`).
+
+Using **Cloud Storage FUSE** (`gcsfuse` on GCP or `Mountpoint for Amazon S3` on AWS), object buckets are mounted directly to the container filesystem:
+
+```bash
+# Mount GCS bucket to /mnt/gcs inside the worker container
+gcsfuse --implicit-dirs spectral-data-lake /mnt/gcs
+```
+
+### Containerized Execution on Cloud Batch
+
+By packaging `hyperSpec` and `hySpc.hpc` into an **Apptainer/Docker** container, jobs run identically on on-premise institutional clusters and cloud instances:
+
+```dockerfile
+FROM rocker/r-ver:4.3.0
+
+# Install Rust toolchain for hySpc.hpc compilation
+RUN apt-get update && apt-get install -y curl build-essential libssl-dev pkg-config
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install R dependencies and hySpc.hpc
+RUN R -e "install.packages(c('hyperSpec', 'future', 'future.apply', 'remotes'))"
+RUN R -e "remotes::install_github('r-hyperspec/hySpc.hpc')"
+```
+
+### Cloud Worker Function
+
+```{r eval=FALSE}
+smooth_cloud_worker <- function(gcs_relative_path) {
+  # Detect cloud container CPU allocation
+  cloud_cores <- as.numeric(Sys.getenv("CLOUD_RUN_TASK_INDEX", 
+                            Sys.getenv("AWS_BATCH_JOB_NUM_CPUS", "4")))
+  Sys.setenv(RAYON_NUM_THREADS = cloud_cores)
+  
+  # Stream data directly from mounted cloud bucket
+  input_path <- file.path("/mnt/gcs/raw", gcs_relative_path)
+  output_path <- file.path("/mnt/gcs/smoothed", gcs_relative_path)
+  
+  spc <- readRDS(input_path)
+  spc_smoothed <- graphSmooth(spc, width = 512, height = 512, alpha = 1.5, neighbors = 8)
+  
+  saveRDS(spc_smoothed, output_path)
+  return(output_path)
+}
+```
+
+---
+
+## 5. Provenance & Reproducibility with `provBookR`
+
+When scientific pipelines bridge international supercomputing facilities (such as JSC Jülich, LRZ Munich, RIKEN, C-DAC, EuroHPC, or MGHPCC) and cloud data centers (GCP/AWS), tracking the lineage of every computed spectrum is critical for scientific reproducibility.
+
+By integrating `provBookR`, the entire multi-node execution history—recording input data hashes, scheduler allocation parameters, Rust kernel hyperparameters ($\alpha$, connectivity), and output artifacts—is captured into a standalone, interactive digital booklet:
+
+```{r eval=FALSE}
+library(provBookR)
+
+# Generate a verifiable provenance codex of the smoothing pipeline
+provBookR::publish_codex("distributed_smoothing_pipeline.R", 
+                         output_dir = "provenance_codex")
+```
+
+The resulting `provenance_codex/` directory contains an interactive SvelteKit web report that can be deployed directly to GitHub Pages or cloud storage buckets for peer review and community verification.

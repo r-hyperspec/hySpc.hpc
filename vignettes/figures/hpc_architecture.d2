@@ -1,0 +1,73 @@
+direction: down
+
+classes: {
+  tier: {
+    style: {
+      fill: "#f0f4f8"
+      stroke: "#cbd5e1"
+      border-radius: 8
+      font-size: 16
+      bold: true
+    }
+  }
+  box: {
+    style: {
+      fill: white
+      stroke: "#cbd5e1"
+      border-radius: 4
+      shadow: true
+    }
+  }
+}
+
+Private Tier: 1. PRIVATE TIER\nInternational Academic & National Supercomputing Consortia {
+  class: tier
+  
+  Germany: Germany\nGauss Centre for Supercomputing (JSC, LRZ, HLRS)\nNHR University Network\nMPCDF Garching { class: box }
+  Japan: Japan\nRIKEN (Fugaku), Tokyo Tech (TSUBAME)\nUTokyo (Wisteria), Kyoto Univ\nSINET6 { class: box }
+  India: India\nNSM, C-DAC (PARAM)\nIISc (Param Pravega), IIT Consortia { class: box }
+  Europe: Europe\nEuroHPC (LUMI, Leonardo, MareNostrum)\nARCHER2 (UK) { class: box }
+  Americas: Americas\nNSF ACCESS (TACC, SDSC, NCSA)\nRegional Consortia (MGHPCC) { class: box }
+  
+  Details: "Schedulers: Slurm, PBS Pro / OpenPBS, LSF\nStorage: Lustre, GPFS, Ceph\nBest for: Zero-marginal-cost research & batch queues" {
+    shape: document
+    style.fill: "#fff3cd"
+  }
+  
+  Germany -> Details: { style.stroke: transparent }
+  Japan -> Details: { style.stroke: transparent }
+  India -> Details: { style.stroke: transparent }
+  Europe -> Details: { style.stroke: transparent }
+  Americas -> Details: { style.stroke: transparent }
+}
+
+Hybrid Bridge: 2. HYBRID BRIDGE\nElastic Bursting {
+  class: tier
+  
+  Orchestration: slurm-gcp, AWS ParallelCluster, Terraform { class: box }
+  Containers: Apptainer / Singularity { class: box }
+  Data Sync: rclone, gsutil, aws s3 sync { class: box }
+  
+  Details: "Best for: Offloading queue backlogs to cloud spot instances" {
+    shape: document
+    style.fill: "#d1ecf1"
+  }
+}
+
+Public Tier: 3. PUBLIC TIER\nGlobal Hyperscale Cloud Infrastructure (GCP, AWS, Azure) {
+  class: tier
+  
+  Google Cloud: Google Cloud\nGCS Data Lake (europe-west3, us-east4, asia-south1)\nGCP Batch, GKE { class: box }
+  AWS: Amazon Web Services\nAmazon S3 (eu-central-1, us-east-1)\nAWS Batch, EKS { class: box }
+  
+  Details: "Storage Pattern: Cloud Storage FUSE (POSIX mounting)\nBest for: Elastic scaling across thousands of nodes and REST APIs" {
+    shape: document
+    style.fill: "#d4edda"
+  }
+  
+  Google Cloud -> Details: { style.stroke: transparent }
+  AWS -> Details: { style.stroke: transparent }
+}
+
+Private Tier -> Hybrid Bridge: Container Portability\nData Sync
+Hybrid Bridge -> Public Tier: Cloud Object Storage\nManaged Batch & Container Jobs
