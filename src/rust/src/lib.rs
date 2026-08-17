@@ -3,6 +3,9 @@ use faer::sparse::SparseColMat;
 use dgcmatrix_faer_bridge::{dgcmatrix_to_faer, DgCMatrixView};
 use petgraph::graph::{NodeIndex, UnGraph};
 use rayon::prelude::*;
+use std::sync::RwLock;
+
+static CUSTOM_POOL: RwLock<Option<rayon::ThreadPool>> = RwLock::new(None);
 
 /// `y <- A * x` for a matrix `A` stored in compressed-sparse-column (CSC)
 /// form (`col_ptrs`, `row_indices`, `values`).
@@ -304,8 +307,7 @@ fn graph_smooth_rust(
       assemble_shifted_laplacian(width, height, neighbors, alpha);
 
    // solve (I + alpha * L) x = b for every wavelength band with
-   // the chosen iterative Krylov method. Each column of `data` is an
-   // independent right-hand side (we will later parallelize this loop).
+   // the chosen iterative Krylov method.
   let r_slice = data
       .as_real_slice()
       .ok_or_else(|| Error::Other("`data` must be a numeric (double) matrix".to_string()))?;
@@ -317,26 +319,80 @@ fn graph_smooth_rust(
 
   let mut out_data = vec![0.0f64; n * n_cols];
   
-  out_data
-      .par_chunks_mut(n)
-      .enumerate()
-      .try_for_each(|(jcol, out_chunk)| -> std::result::Result<(), String> {
-          let b = &r_slice[jcol * n..jcol * n + n];
-          let x = match solver {
-              "bicgstab" => solve_bicgstab(n, &col_ptrs, &row_indices, &values, b, tol, max_iter),
-              _ => solve_cg(n, &col_ptrs, &row_indices, &values, b, tol, max_iter),
-          }
-          .map_err(|e| {
-              format!("{} solver failed on band {}: {}", solver, jcol, e)
-          })?;
-          out_chunk.copy_from_slice(&x);
-          Ok(())
-      })
-      .map_err(|e| Error::Other(e))?;
+  let solve_all_bands = |out_slice: &mut [f64]| -> std::result::Result<(), String> {
+      out_slice
+          .par_chunks_mut(n)
+          .enumerate()
+          .try_for_each(|(jcol, out_chunk)| -> std::result::Result<(), String> {
+              let b = &r_slice[jcol * n..jcol * n + n];
+              let x = match solver {
+                  "bicgstab" => solve_bicgstab(n, &col_ptrs, &row_indices, &values, b, tol, max_iter),
+                  _ => solve_cg(n, &col_ptrs, &row_indices, &values, b, tol, max_iter),
+              }
+              .map_err(|e| {
+                  format!("{} solver failed on band {}: {}", solver, jcol, e)
+              })?;
+              out_chunk.copy_from_slice(&x);
+              Ok(())
+          })
+  };
+
+  let pool_guard = CUSTOM_POOL
+      .read()
+      .map_err(|e| Error::Other(format!("Failed to read thread pool lock: {e}")))?;
+
+  if let Some(ref pool) = *pool_guard {
+      pool.install(|| solve_all_bands(&mut out_data)).map_err(Error::Other)?;
+  } else {
+      solve_all_bands(&mut out_data).map_err(Error::Other)?;
+  }
 
    Ok(RMatrix::new_matrix(n, n_cols, |r, c| out_data[c * n + r]))
 }
 
+/// Dynamically set the number of worker threads used by the Rust HPC backend.
+///
+/// Builds a dedicated Rayon thread pool with `n` threads. Subsequent parallel
+/// operations (e.g. `graph_smooth_rust`) will execute on this pool.
+///
+/// @param n integer number of worker threads (must be >= 1).
+/// @export
+#[extendr]
+fn set_hpc_threads_rust(n: i32) -> extendr_api::Result<i32> {
+    if n <= 0 {
+        return Err(Error::Other(format!("Number of threads must be positive, got {n}")));
+    }
+    let n_usize = n as usize;
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(n_usize)
+        .build()
+        .map_err(|e| Error::Other(format!("Failed to build Rayon thread pool: {e}")))?;
+
+    let mut guard = CUSTOM_POOL
+        .write()
+        .map_err(|e| Error::Other(format!("Failed to acquire thread pool lock: {e}")))?;
+    *guard = Some(pool);
+
+    Ok(n)
+}
+
+/// Query the number of active worker threads in the Rust HPC backend.
+///
+/// Returns the thread count of the active custom thread pool if configured,
+/// or Rayon's global thread count.
+///
+/// @export
+#[extendr]
+fn get_hpc_threads_rust() -> extendr_api::Result<i32> {
+    let guard = CUSTOM_POOL
+        .read()
+        .map_err(|e| Error::Other(format!("Failed to acquire thread pool lock: {e}")))?;
+    if let Some(ref pool) = *guard {
+        Ok(pool.current_num_threads() as i32)
+    } else {
+        Ok(rayon::current_num_threads() as i32)
+    }
+}
 
 /// Compute row sums of an R dgCMatrix using the Rust faer bridge.
 ///
@@ -397,6 +453,8 @@ extendr_module! {
   fn dgc_row_sums_rust;
   fn pixel_graph_stats_rust;
   fn laplacian_matrix_rust;
+  fn set_hpc_threads_rust;
+  fn get_hpc_threads_rust;
 }
 
 /// Diagnostic helper to expose pixel graph connectivity stats to R
@@ -433,6 +491,7 @@ fn laplacian_matrix_rust(width: usize, height: usize, neighbors: i32) -> extendr
             neighbors
         )));
     }
+
     // L corresponds to A = I + alpha * L with alpha = 1.0, minus I
     let (n, col_ptrs, row_indices, mut values) = assemble_shifted_laplacian(width, height, neighbors, 1.0);
     
@@ -558,4 +617,21 @@ mod tests {
             assert!((x[i] - b[i]).abs() < 1e-12);
         }
     }
+
+    #[test]
+    fn thread_pool_management_works() {
+        assert!(get_hpc_threads_rust().is_ok());
+
+        let res = set_hpc_threads_rust(2);
+        assert_eq!(res.unwrap(), 2);
+        assert_eq!(get_hpc_threads_rust().unwrap(), 2);
+
+        let res4 = set_hpc_threads_rust(4);
+        assert_eq!(res4.unwrap(), 4);
+        assert_eq!(get_hpc_threads_rust().unwrap(), 4);
+
+        let res_err = set_hpc_threads_rust(0);
+        assert!(res_err.is_err());
+    }
 }
+

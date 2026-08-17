@@ -39,4 +39,21 @@ pixel_graph_stats_rust <- function(width, height, neighbors) .Call(wrap__pixel_g
 #' @noRd
 laplacian_matrix_rust <- function(width, height, neighbors) .Call(wrap__laplacian_matrix_rust, width, height, neighbors)
 
+#' Dynamically set the number of worker threads used by the Rust HPC backend.
+#'
+#' Builds a dedicated Rayon thread pool with `n` threads. Subsequent parallel
+#' operations (e.g. `graph_smooth_rust`) will execute on this pool.
+#'
+#' @param n integer number of worker threads (must be >= 1).
+#' @export
+set_hpc_threads_rust <- function(n) .Call(wrap__set_hpc_threads_rust, n)
+
+#' Query the number of active worker threads in the Rust HPC backend.
+#'
+#' Returns the thread count of the active custom thread pool if configured,
+#' or Rayon's global thread count.
+#'
+#' @export
+get_hpc_threads_rust <- function() .Call(wrap__get_hpc_threads_rust)
+
 # nolint end

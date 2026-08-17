@@ -37,6 +37,7 @@ Collate:
     'extendr-wrappers.R'
     'graphSmooth.R'
     'graph_smooth_r.R'
+    'hpc_threads.R'
     'package.R'
     'sparse_bridge.R'
     'unittestdata.R'
