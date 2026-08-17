@@ -24,7 +24,8 @@
 #'   [Matrix] sparse routines. Here the Laplacian is assembled as a
 #'   `dgCMatrix` and solved with [Matrix::solve()]. Used as the
 #'   correctness reference and the pure-R side of the benchmark.
-#'   `width * height`.
+#' @param x a [hyperSpec::hyperSpec] object whose `spc` slot has
+#'   `nrow(x) == width * height`.
 #' @param width,height integer image dimensions.
 #' @param alpha non-negative numeric smoothing strength. Larger values
 #'   produce smoother output; `alpha = 0` returns `x` unchanged.

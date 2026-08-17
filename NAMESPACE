@@ -2,7 +2,6 @@
 
 export(demo_function)
 export(graphSmooth)
-export(dgc_row_sums_rust)
 export(graph_smooth_r)
 export(graph_smooth_rust)
 export(sparse_row_sums)

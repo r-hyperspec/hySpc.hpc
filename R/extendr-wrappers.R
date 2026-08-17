@@ -28,12 +28,15 @@ graph_smooth_rust <- function(data, width, height, alpha, neighbors, solver) .Ca
 #'
 #' Extract `p`, `i`, `x` slots of a `dgCMatrix` on the R side, transfer them through extendr, reconstruct a faer SparseColMat` via the `dgcmatrix-faer-bridge` crate,
 #'  and return the row sums to R. This is the minimal round-trip that exercises the dgCMatrix -> faer FFI bridge end-to-end.
+#' @noRd
 dgc_row_sums_rust <- function(p, i, x, nrow, ncol) .Call(wrap__dgc_row_sums_rust, p, i, x, nrow, ncol)
 
 #' Diagnostic helper to expose pixel graph connectivity stats to R
+#' @noRd
 pixel_graph_stats_rust <- function(width, height, neighbors) .Call(wrap__pixel_graph_stats_rust, width, height, neighbors)
 
 #' Diagnostic helper to expose the combinatorial Laplacian L = D - W
+#' @noRd
 laplacian_matrix_rust <- function(width, height, neighbors) .Call(wrap__laplacian_matrix_rust, width, height, neighbors)
 
 # nolint end

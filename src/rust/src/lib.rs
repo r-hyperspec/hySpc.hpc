@@ -342,6 +342,7 @@ fn graph_smooth_rust(
 ///
 /// Extract `p`, `i`, `x` slots of a `dgCMatrix` on the R side, transfer them through extendr, reconstruct a faer SparseColMat` via the `dgcmatrix-faer-bridge` crate,
 ///  and return the row sums to R. This is the minimal round-trip that exercises the dgCMatrix -> faer FFI bridge end-to-end.
+/// @noRd
 #[extendr]
 fn dgc_row_sums_rust(
   p: Robj,
@@ -399,6 +400,7 @@ extendr_module! {
 }
 
 /// Diagnostic helper to expose pixel graph connectivity stats to R
+/// @noRd
 #[extendr]
 fn pixel_graph_stats_rust(width: usize, height: usize, neighbors: i32) -> extendr_api::Result<List> {
     if neighbors != 4 && neighbors != 8 {
@@ -421,8 +423,10 @@ fn pixel_graph_stats_rust(width: usize, height: usize, neighbors: i32) -> extend
 }
 
 /// Diagnostic helper to expose the combinatorial Laplacian L = D - W
+/// @noRd
 #[extendr]
 fn laplacian_matrix_rust(width: usize, height: usize, neighbors: i32) -> extendr_api::Result<List> {
+
     if neighbors != 4 && neighbors != 8 {
         return Err(Error::Other(format!(
             "`neighbors` must be 4 or 8, got {}",

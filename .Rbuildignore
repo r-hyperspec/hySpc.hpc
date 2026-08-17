@@ -58,3 +58,4 @@ tests/testthat/fileio
 ^src/rust/target$
 ^src/Makevars$
 ^src/Makevars\.win$
+^benchmarking$

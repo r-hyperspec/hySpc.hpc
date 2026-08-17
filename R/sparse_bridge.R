@@ -49,7 +49,7 @@
 #'
 #' @param A a sparse matrix coercible to [Matrix::dgCMatrix-class].
 #' @return Numeric vector of length `nrow(A)`.
-#' @seealso [dgc_row_sums_rust()], [Matrix::rowSums()].
+#' @seealso [Matrix::rowSums()].
 #' @examples
 #' \dontrun{
 #'   A <- Matrix::sparseMatrix(
