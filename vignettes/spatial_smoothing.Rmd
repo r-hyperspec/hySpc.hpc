@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 Hyperspectral imaging data often suffers from spatial noise. A common preprocessing step is to apply a spatial smoother. This vignette demonstrates how to use the `graphSmooth()` function provided by `hySpc.hpc`. 
 
-This implementation leverages Rust's `extendr` framework and the high-performance `faer` linear algebra crate to solve the sparse Laplacian equation:
+This implementation leverages Rust's `extendr` framework and an iterative Krylov solver (Conjugate Gradient or BiCGSTAB) to solve the sparse Laplacian equation:
 
 $$
 (I + \alpha L) x = b
@@ -84,6 +84,7 @@ image(smoothed_band1, main="Smoothed Band 1", col=hcl.colors(12, "viridis"))
 
 * **`alpha`**: Controls the amount of smoothing. Higher values result in stronger smoothing.
 * **`neighbors`**: The connectivity of the spatial grid. Can be `4` (up, down, left, right) or `8` (includes diagonals).
+* **`solver`**: The iterative Krylov solver used by the Rust backend. Can be `"cg"` (Conjugate Gradient, default) or `"bicgstab"` (BiCGSTAB).
 
 ```{r strong_smooth}
 # Stronger smoothing
@@ -96,4 +97,4 @@ image(strong_band1, main="Strongly Smoothed (alpha = 10.0)", col=hcl.colors(12, 
 
 ## Performance
 
-By utilizing a sparse Cholesky solver natively in Rust, `graphSmooth()` is designed to handle very large images efficiently. Memory overhead is minimized by directly passing memory slices via `extendr`.
+By utilizing iterative Krylov solvers natively in Rust, `graphSmooth()` is designed to handle very large images efficiently. Memory overhead is minimized by directly passing memory slices via `extendr`.
