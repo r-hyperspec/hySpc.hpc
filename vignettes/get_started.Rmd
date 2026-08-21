@@ -1,0 +1,110 @@
+---
+title: "Getting Started with hySpc.hpc"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with hySpc.hpc}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5
+)
+```
+
+## Introduction
+
+`hySpc.hpc` provides High-Performance Computing (HPC) acceleration routines for the `r-hyperspec` suite. By bridging R with native Rust via `extendr`, `hySpc.hpc` accelerates spatial-spectral operations on large hyperspectral datacubes using sparse iterative Krylov solvers (Conjugate Gradient, BiCGSTAB) and multi-threaded parallel execution (`rayon`).
+
+This guide walks through installation, basic spatial smoothing, thread pool management, and solver configuration.
+
+---
+
+## Installation
+
+Install the development version of `hySpc.hpc` from the `r-hyperspec` repository or GitHub:
+
+```r
+# Recommended: Install from r-hyperspec repository
+repos <- c("https://r-hyperspec.github.io/pkg-repo/", getOption("repos"))
+install.packages("hySpc.hpc", repos = repos)
+
+# Alternatively, install via remotes:
+# remotes::install_github("r-hyperspec/hySpc.hpc")
+```
+
+---
+
+## 1. Basic Spatial Smoothing with `graphSmooth()`
+
+The central entry point in `hySpc.hpc` is `graphSmooth()`, which applies spatial graph Laplacian smoothing $(I + \alpha L) x = b$ across wavelength channels.
+
+```r
+library(hyperSpec)
+library(hySpc.hpc)
+
+# Load example hyperspectral dataset (or generate mock spatial data)
+set.seed(42)
+width <- 50
+height <- 50
+n_wl <- 100
+
+# Create synthetic noisy spatial-spectral matrix (2500 pixels x 100 wavelengths)
+raw_spc <- matrix(rnorm(width * height * n_wl, mean = 50, sd = 10), nrow = width * height, ncol = n_wl)
+spc_obj <- new("hyperSpec", spc = raw_spc, wavelength = seq(400, 800, length.out = n_wl))
+
+# Apply 8-neighbor spatial graph smoothing using the native Rust Conjugate Gradient solver
+spc_smoothed <- graphSmooth(
+  spc_obj, 
+  width = width, 
+  height = height, 
+  alpha = 1.5, 
+  neighbors = 8, 
+  solver = "cg"
+)
+```
+
+---
+
+## 2. Choosing the Right Solver Backend
+
+`hySpc.hpc` supports multiple solver backends depending on problem scale and symmetry:
+
+| Solver Option (`solver=`) | Underlying Engine | Best Use Case |
+| :--- | :--- | :--- |
+| `"cg"` **(Default)** | Native Rust Conjugate Gradient (`csc_matvec`) | Symmetric positive-definite Laplacians (Fastest & memory-efficient) |
+| `"bicgstab"` | Native Rust BiCGSTAB (`csc_matvec`) | Asymmetric or directed spatial graph systems |
+| `"faer"` | Rust `faer` Sparse Cholesky | Direct sparse matrix factorizations |
+| `"dense"` | Base R / LAPACK | Baseline verification on small matrices |
+
+```r
+# Example: Using BiCGSTAB solver for directed or weighted graphs
+spc_bicg <- graphSmooth(spc_obj, width = width, height = height, alpha = 2.0, solver = "bicgstab")
+```
+
+---
+
+## 3. HPC Thread Pool Management
+
+To prevent node over-subscription on shared multi-tenant clusters or Slurm environments, `hySpc.hpc` auto-detects CPU quotas and configures the native `rayon` thread pool:
+
+```r
+# Inspect auto-detected CPU quota from Slurm / cgroup / system environment
+quota <- get_hpc_thread_limit()
+cat("Auto-detected CPU thread limit:", quota, "\n")
+
+# Manually set Rayon worker threads
+set_hpc_threads(4)
+```
+
+---
+
+## Next Steps & Advanced Articles
+
+- **[Spatial Smoothing with Rust](spatial_smoothing.html)**: Mathematical background on graph Laplacians.
+- **[Benchmarking R vs. Rust](benchmarking.html)**: Performance scaling benchmarks across image sizes.
+- **[Distributed Spectroscopy & HPC Clusters](hpc_cluster.html)**: Deploying `hySpc.hpc` on Slurm, AWS, GCP, and supercomputing consortia.

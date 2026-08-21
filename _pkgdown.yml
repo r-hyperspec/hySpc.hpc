@@ -1,98 +1,101 @@
+# ── hySpc.hpc pkgdown configuration ──
 
-# -------------------------------------------------------------------------
+url: https://r-hyperspec.github.io/hySpc.hpc/
 
 template:
   params:
     bootswatch: cerulean
     noindex: false
 
-# -------------------------------------------------------------------------
-# Automatically switches, which verion should be built:
-# released or in-development
-
 development:
   mode: auto
 
-# -------------------------------------------------------------------------
-# # If you need custom navigation bar, modify this section:
+# ── Navigation Bar ──
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [github]
+  components:
+    intro:
+      text: Get Started
+      href: articles/get_started.html
+    articles:
+      text: Articles
+      menu:
+        - text: "--- Getting Started ---"
+        - text: "Getting Started with hySpc.hpc"
+          href: articles/get_started.html
+        - text: "--- Core Algorithms & Solvers ---"
+        - text: "Spatial Smoothing with Rust"
+          href: articles/spatial_smoothing.html
+        - text: "--- Performance Scaling ---"
+        - text: "Benchmarking hySpc.hpc: R vs Rust Backend"
+          href: articles/benchmarking.html
+        - text: "--- HPC & Distributed Computing ---"
+        - text: "Distributed Spectroscopy: Global Supercomputing Consortia"
+          href: articles/hpc_cluster.html
+    news:
+      text: Changelog
+      href: news/index.html
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/r-hyperspec/hySpc.hpc
 
-# navbar:
-#   structure:
-#     left:  [version, home, intro, articles, tutorials, reference, news]
-#     right: [github]
-#   components:
-#     version:
-#       icon: fa-book
-#       menu:
-#       - text: "Documentation for version of package:"
-#       - text: Released
-#         href: https://r-hyperspec.github.io/hySpc.hpc/
-#       - text: In-development
-#         href: https://r-hyperspec.github.io/hySpc.hpc/dev/
+# ── Articles Index Page ──
+articles:
+  - title: "Getting Started"
+    desc: "Installation, quickstart guide, and basic workflow examples."
+    contents:
+      - get_started
+  - title: "Core Spatial Algorithms & Solvers"
+    desc: "Mathematical formulations of spatial graph Laplacians and native Rust Krylov solvers."
+    contents:
+      - spatial_smoothing
+  - title: "Performance Scaling & Benchmarking"
+    desc: "Quantitative benchmarks comparing pure R vs Rust backends across image sizes."
+    contents:
+      - benchmarking
+  - title: "HPC Cluster Deployment & Cloud Infrastructure"
+    desc: "Orchestrating hySpc.hpc across Slurm supercomputing clusters, AWS Batch, and GCP data centers."
+    contents:
+      - hpc_cluster
 
-# -------------------------------------------------------------------------
-# # If you need custom webpage for articles, modify this section:
-
-# articles:
-#   - title: "Principles"
-#     navbar: ~
-#     desc: >
-#       The main functionality of this package
-#     contents:
-#     - vignette-1
-#     - vignette-1
-#   - title: "Case studies"
-#     desc: >
-#       The example workflows.
-#     contents:
-#     - vignette-3
-#     - vignette-4
-
-# -------------------------------------------------------------------------
-# # If you need links for authors, modify this section:
+# ── Function Reference ──
+reference:
+  - title: "Spatial-Spectral Smoothing"
+    desc: "High-performance spatial Laplacian algorithms for hyperspectral images."
+    contents:
+      - graphSmooth
+      - graph_smooth_r
+      - graph_smooth_rust
+      - build_adjacency_r
+      - build_laplacian_r
+  - title: "HPC Thread Pool & Quota Management"
+    desc: "Utilities for auto-detecting scheduler CPU quotas and configuring Rayon thread pools."
+    contents:
+      - set_hpc_threads
+      - get_hpc_threads
+      - detect_hpc_cores
+      - with_hpc_threads
+      - hpc_threads
+      - set_hpc_threads_rust
+      - get_hpc_threads_rust
+  - title: "Native FFI Utilities"
+    desc: "FFI bridge routines between R dgCMatrix and Rust sparse matrices."
+    contents:
+      - sparse_row_sums
+      - '".dgc_slots"'
+      - demo_function
 
 authors:
+  Erick Oduniyi:
+    href: https://github.com/eoduniyi
+  Tamaghna Chattopadhyay:
+    href: https://github.com/r-hyperspec
   Bryan A. Hanson:
     href: http://academic.depauw.edu/hanson_web/
   Vilmantas Gegzna:
     href: https://orcid.org/0000-0002-9500-5167
-#   First-name Family-name:
-#     href: https://some.url
-
-# -------------------------------------------------------------------------
-# # If you need custom webpage for reference, modify this section:
-
-# reference:
-# - title: 'Package "..."'
-# - contents:
-#   - has_keyword("package")
-#   - has_keyword("classes")
-# - title: Datasets
-#   desc: "Datasets in package."
-# - contents:
-#   - has_concept("datasets")
-# - title: Plots
-# - subtitle: R base and package "lattice" based plots
-# - contents:
-#   - "plot-methods"
-#   - has_keyword("aplot")
-#   - has_keyword("dplot")
-#   - has_keyword("hplot")
-#   - has_keyword("iplot")
-#   - has_keyword("color")
-# - subtitle: Package "ggplot2" based plots
-# - contents:
-#   - has_concept("ggplot2")
-# - title: Other functions
-# - subtitle: Other active functions
-# - contents:
-#   - lacks_concepts("deprecated")
-# - subtitle: Deprecated and defunct functions
-#   desc: "You should **not** use these functions."
-# - contents:
-#   - has_concept("deprecated", internal = TRUE)
-
-# -------------------------------------------------------------------------
 
 figures:
   dev: grDevices::png
@@ -103,5 +106,3 @@ figures:
   fig.height: 3
   fig.retina: 2
   fig.asp: 1.618
-
-# -------------------------------------------------------------------------
