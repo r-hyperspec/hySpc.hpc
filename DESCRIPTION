@@ -1,7 +1,7 @@
 Package: hySpc.hpc
 Type: Package
 Title: hyperSpec-HPC: Fast Sparse Spectral Kernels in R and Rust
-Description: A fast, memory-safe sparse Laplacian solver for hyperspectral data using extendr and faer.
+Description: A fast, memory-safe sparse Laplacian solver for hyperspectral data using extendr, self-contained Krylov kernels, and faer.
 Version: 0.0.0.9000
 Date: 2026-06-11
 Authors@R: c(

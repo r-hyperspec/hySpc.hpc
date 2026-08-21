@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 The `hySpc.hpc` package offers two backends for spatial smoothing of hyperspectral images:
 1.  **R**: The native R implementation.
-2.  **Rust**: A highly optimized Rust backend leveraging `faer` for sparse linear algebra and `rayon` for parallel processing.
+2.  **Rust**: A highly optimized Rust backend leveraging self-contained `csc_matvec` Krylov kernels, `faer` sparse factorizations, and `rayon` for parallel processing.
 
 This vignette details the performance differences between the two backends across various image sizes.
 

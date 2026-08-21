@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 ## Introduction
 
-The `hySpc.hpc` package derives its "High-Performance" name from its ability to dramatically accelerate spatial smoothing operations on hyperspectral images. It achieves this by bridging R with Rust, utilizing the `faer` crate for sparse linear algebra and the `rayon` crate for multi-threaded parallel execution.
+The `hySpc.hpc` package derives its "High-Performance" name from its ability to dramatically accelerate spatial smoothing operations on hyperspectral images. It achieves this by bridging R with Rust, utilizing self-contained Krylov matrix-vector kernels (`csc_matvec`) for fast CG/BiCGSTAB solvers, `faer` for sparse linear algebra, and the `rayon` crate for multi-threaded parallel execution.
 
 However, `hySpc.hpc` is fundamentally an **intra-node accelerator**: it saturates all available CPU cores *on a single physical machine* to smooth across multiple wavelength bands simultaneously.
 
